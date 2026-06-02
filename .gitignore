@@ -9,3 +9,6 @@ plugins/*
 plugins/example-plugin/node_modules/
 *.log
 .DS_Store
+.claude/*
+.claude/
+.claude
