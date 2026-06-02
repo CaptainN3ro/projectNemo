@@ -1,0 +1,14 @@
+{
+  "name": "example-plugin",
+  "shortName": "Notizen",
+  "longName": "Beispiel-Plugin: Notizen",
+  "version": "1.0.0",
+  "author": "Project Nemo Team",
+  "authorLink": "https://github.com/CaptainN3ro",
+  "description": "Vollständiges Referenz-Plugin. Zeigt Datenbank-Zugriff, Datei-Upload, CRUD-Routen, Admin-Einstellungen und Frontend-Integration.",
+  "icon": "assets/icon.svg",
+  "menuItem": {
+    "placement": "top",
+    "label": "Notizen"
+  }
+}

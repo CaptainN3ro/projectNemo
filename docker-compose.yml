@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: nemo_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-project_nemo}
+      MYSQL_USER: ${DB_USER:-nemo}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-nemopassword}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    networks:
+      - nemo_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: nemo_server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-project_nemo}
+      DB_USER: ${DB_USER:-nemo}
+      DB_PASSWORD: ${DB_PASSWORD:-nemopassword}
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret_please_use_32chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-changeme_refresh_secret_32chars}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-changeme_32char_encryption_key!!}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      UPLOAD_DIR: /app/uploads
+      PLUGINS_DIR: /app/plugins
+    volumes:
+      - uploads_data:/app/uploads
+      - plugins_data:/app/plugins
+    networks:
+      - nemo_network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    container_name: nemo_client
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    networks:
+      - nemo_network
+    depends_on:
+      - server
+
+  ftp:
+    image: fauria/vsftpd
+    container_name: nemo_ftp
+    restart: unless-stopped
+    environment:
+      FTP_USER: ${FTP_USER:-nemo_ftp}
+      FTP_PASS: ${FTP_PASS:-changeme_ftp_pass}
+      PASV_ADDRESS: ${SERVER_HOST:-localhost}
+      PASV_MIN_PORT: 21100
+      PASV_MAX_PORT: 21110
+    ports:
+      - "21:21"
+      - "21100-21110:21100-21110"
+    volumes:
+      - plugins_data:/home/vsftpd/${FTP_USER:-nemo_ftp}
+    networks:
+      - nemo_network
+
+volumes:
+  db_data:
+    name: nemo_db_data
+  uploads_data:
+    name: nemo_uploads_data
+  plugins_data:
+    name: nemo_plugins_data
+
+networks:
+  nemo_network:
+    driver: bridge

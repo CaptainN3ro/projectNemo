@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notizen</title>
+  <!--
+    PLUGIN FRONTEND PATTERN
+    =======================
+    This page is loaded inside a sandboxed <iframe> by the PluginFrame component.
+    The JWT and other context are passed as URL query parameters:
+
+      /plugins/example-plugin/html/index.html?token=<jwt>
+
+    For pet-level plugins (placement: "pet"), petId is also passed:
+      /plugins/example-plugin/html/pet.html?petId=3&token=<jwt>
+
+    All API calls use the standard fetch() API with the Bearer token.
+    Files are served statically from /uploads/ by the main nginx proxy.
+  -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #10b981; --primary-dk: #059669;
+      --bg: #f9fafb; --surface: #fff; --border: #e5e7eb;
+      --text: #111827; --muted: #6b7280; --radius: 10px;
+      --shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Toolbar ── */
+    .toolbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+    .toolbar h1 { font-size: .95rem; font-weight: 700; flex: 1; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #f3f4f6; color: var(--muted); font-size: .72rem; padding: 2px 8px; border-radius: 99px; font-weight: 400; }
+    .btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 13px; height: 33px; border-radius: 8px; font-size: .82rem; font-weight: 500; border: none; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: var(--primary); color: #fff; } .btn-primary:hover { background: var(--primary-dk); }
+    .btn-secondary { background: #f3f4f6; color: var(--text); border: 1px solid var(--border); } .btn-secondary:hover { background: #e5e7eb; }
+    .btn-danger { background: #ef4444; color: #fff; } .btn-danger:hover { background: #dc2626; }
+    .btn:disabled { opacity: .5; cursor: default; }
+
+    /* ── Content ── */
+    .content { padding: 16px; max-width: 800px; }
+
+    /* ── Form panel ── */
+    .form-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; display: none; box-shadow: var(--shadow); }
+    .form-panel.open { display: block; animation: slideDown .18s ease; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .form-panel h3 { font-size: .88rem; font-weight: 600; margin-bottom: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .form-group label { font-size: .78rem; font-weight: 500; color: var(--muted); }
+    .form-group input, .form-group textarea {
+      border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px;
+      font-size: .85rem; font-family: inherit; color: var(--text); background: var(--surface);
+    }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-group small { font-size: .73rem; color: #9ca3af; }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+
+    /* ── Note cards ── */
+    .notes-list { display: flex; flex-direction: column; gap: 10px; }
+    .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+    .note-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+    .note-title { font-weight: 600; font-size: .9rem; flex: 1; }
+    .note-date { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+    .note-content { font-size: .84rem; color: var(--muted); line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+    .note-footer { margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .file-badge { display: inline-flex; align-items: center; gap: 5px; background: #f0fdf4; color: var(--primary-dk); font-size: .75rem; padding: 3px 9px; border-radius: 99px; border: 1px solid #bbf7d0; text-decoration: none; transition: background .15s; }
+    .file-badge:hover { background: #dcfce7; }
+    .note-actions { margin-left: auto; display: flex; gap: 6px; }
+
+    /* ── Edit mode ── */
+    .note-card.editing .note-view { display: none; }
+    .note-card.editing .note-edit { display: block; }
+    .note-edit { display: none; }
+    .note-edit input, .note-edit textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: .85rem; font-family: inherit; margin-bottom: 8px; }
+    .note-edit input:focus, .note-edit textarea:focus { outline: none; border-color: var(--primary); }
+    .note-edit textarea { min-height: 70px; resize: vertical; }
+
+    /* ── States ── */
+    .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-icon { font-size: 3rem; opacity: .3; margin-bottom: 12px; }
+    .loading { text-align: center; padding: 50px; color: var(--muted); font-size: .88rem; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1f2937; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: .82rem; z-index: 200; transition: transform .25s; pointer-events: none; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.ok  { background: #065f46; }
+    .toast.err { background: #991b1b; }
+
+    /* ── Confirm ── */
+    .cm { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; }
+    .cm.open { display: flex; }
+    .cm-bg { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+    .cm-box { position: relative; z-index: 1; background: #fff; border-radius: 12px; padding: 22px; max-width: 320px; width: calc(100% - 32px); box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+    .cm-box h3 { font-size: .95rem; font-weight: 600; margin-bottom: 8px; }
+    .cm-box p  { font-size: .83rem; color: var(--muted); margin-bottom: 18px; }
+    .cm-acts   { display: flex; gap: 10px; justify-content: flex-end; }
+
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: currentColor; border-radius: 50%; animation: spin .5s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>
+    📝 Notizen
+    <span class="badge" id="note-count">0</span>
+  </h1>
+  <button class="btn btn-primary" id="btn-new">+ Neue Notiz</button>
+</div>
+
+<div class="content">
+  <!-- Create form -->
+  <div class="form-panel" id="create-panel">
+    <h3>Neue Notiz</h3>
+    <div class="form-group">
+      <label>Titel *</label>
+      <input type="text" id="new-title" placeholder="Titel der Notiz" />
+    </div>
+    <div class="form-group">
+      <label>Inhalt</label>
+      <textarea id="new-content" placeholder="Notiztext…"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Dateianhang (optional)</label>
+      <input type="file" id="new-file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp" />
+      <small>PDF, Bild, TXT, Markdown · max. 10 MB</small>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" id="btn-cancel-new">Abbrechen</button>
+      <button class="btn btn-primary" id="btn-submit-new">Speichern</button>
+    </div>
+  </div>
+
+  <div id="notes-list" class="notes-list"></div>
+</div>
+
+<!-- Confirm delete -->
+<div class="cm" id="cm">
+  <div class="cm-bg" id="cm-bg"></div>
+  <div class="cm-box">
+    <h3>Notiz löschen?</h3>
+    <p>Die Notiz und ihr Dateianhang werden dauerhaft gelöscht.</p>
+    <div class="cm-acts">
+      <button class="btn btn-secondary" id="cm-cancel">Abbrechen</button>
+      <button class="btn btn-danger"    id="cm-confirm">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Init ─────────────────────────────────────────────────────────────────
+const token = new URLSearchParams(location.search).get('token') || '';
+const API   = '/api/plugins/example-plugin';
+let notes   = [];
+let deleteTarget = null;
+
+const $ = id => document.getElementById(id);
+
+// ── API helpers ───────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Date formatting ───────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function bytesToHuman(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)       return `${bytes} B`;
+  if (bytes < 1024*1024)  return `${(bytes/1024).toFixed(1)} KB`;
+  return `${(bytes/(1024*1024)).toFixed(1)} MB`;
+}
+
+// ── Load notes ────────────────────────────────────────────────────────────
+async function load() {
+  $('notes-list').innerHTML = '<div class="loading">Lade…</div>';
+  try {
+    notes = await apiFetch('/notes');
+    render();
+  } catch (e) {
+    $('notes-list').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+// ── Render notes ──────────────────────────────────────────────────────────
+function render() {
+  $('note-count').textContent = notes.length;
+  const list = $('notes-list');
+
+  if (!notes.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📝</div><p>Noch keine Notizen vorhanden.<br>Erstelle deine erste Notiz!</p></div>`;
+    return;
+  }
+
+  list.innerHTML = notes.map(n => `
+    <div class="note-card" id="note-${n.id}">
+
+      <!-- Read view -->
+      <div class="note-view">
+        <div class="note-header">
+          <div class="note-title">${esc(n.title)}</div>
+          <div class="note-date">${fmtDate(n.updated_at)}</div>
+        </div>
+        ${n.content ? `<div class="note-content">${esc(n.content)}</div>` : ''}
+        <div class="note-footer">
+          ${n.file_path ? `
+            <a class="file-badge" href="${esc(n.file_path)}" download="${esc(n.original_filename || 'anhang')}">
+              📎 ${esc(n.original_filename || 'Anhang')}
+              ${n.file_size ? `<span style="opacity:.6">${bytesToHuman(n.file_size)}</span>` : ''}
+            </a>` : ''}
+          <div class="note-actions">
+            <button class="btn btn-secondary" onclick="startEdit(${n.id})" style="height:28px;padding:0 10px;font-size:.78rem">Bearbeiten</button>
+            <button class="btn btn-danger"    onclick="confirmDelete(${n.id})" style="height:28px;padding:0 10px;font-size:.78rem">Löschen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit view -->
+      <div class="note-edit" id="edit-${n.id}">
+        <input type="text" id="edit-title-${n.id}" value="${esc(n.title)}" placeholder="Titel" />
+        <textarea id="edit-content-${n.id}" placeholder="Inhalt…">${esc(n.content || '')}</textarea>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="cancelEdit(${n.id})">Abbrechen</button>
+          <button class="btn btn-primary"   onclick="saveEdit(${n.id})">Speichern</button>
+        </div>
+      </div>
+
+    </div>
+  `).join('');
+}
+
+// ── Create ────────────────────────────────────────────────────────────────
+$('btn-new').addEventListener('click', () => {
+  $('create-panel').classList.toggle('open');
+  if ($('create-panel').classList.contains('open')) $('new-title').focus();
+});
+$('btn-cancel-new').addEventListener('click', resetCreateForm);
+
+$('btn-submit-new').addEventListener('click', async () => {
+  const title = $('new-title').value.trim();
+  if (!title) return toast('Bitte einen Titel eingeben.', 'err');
+
+  const btn = $('btn-submit-new');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('title',   title);
+    fd.append('content', $('new-content').value);
+    const file = $('new-file').files[0];
+    if (file) fd.append('file', file);
+
+    await fetch(API + '/notes', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: fd
+    }).then(async r => {
+      if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || `HTTP ${r.status}`); }
+      return r.json();
+    });
+
+    toast('Notiz erstellt!');
+    resetCreateForm();
+    await load();
+  } catch (e) { toast(e.message, 'err'); }
+  finally { btn.innerHTML = 'Speichern'; btn.disabled = false; }
+});
+
+function resetCreateForm() {
+  $('create-panel').classList.remove('open');
+  $('new-title').value = '';
+  $('new-content').value = '';
+  $('new-file').value = '';
+}
+
+// ── Edit ──────────────────────────────────────────────────────────────────
+function startEdit(id) {
+  document.getElementById(`note-${id}`).classList.add('editing');
+  document.getElementById(`edit-title-${id}`).focus();
+}
+
+function cancelEdit(id) {
+  document.getElementById(`note-${id}`).classList.remove('editing');
+}
+
+async function saveEdit(id) {
+  const title   = document.getElementById(`edit-title-${id}`).value.trim();
+  const content = document.getElementById(`edit-content-${id}`).value;
+  if (!title) return toast('Titel darf nicht leer sein.', 'err');
+
+  try {
+    await apiFetch(`/notes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content })
+    });
+    toast('Gespeichert!');
+    await load();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────
+function confirmDelete(id) {
+  deleteTarget = id;
+  $('cm').classList.add('open');
+}
+$('cm-cancel').addEventListener('click', () => { $('cm').classList.remove('open'); deleteTarget = null; });
+$('cm-bg').addEventListener('click',    () => { $('cm').classList.remove('open'); deleteTarget = null; });
+
+$('cm-confirm').addEventListener('click', async () => {
+  if (!deleteTarget) return;
+  const btn = $('cm-confirm');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    await apiFetch(`/notes/${deleteTarget}`, { method: 'DELETE' });
+    $('cm').classList.remove('open');
+    deleteTarget = null;
+    toast('Notiz gelöscht.');
+    await load();
+  } catch (e) { toast(e.message, 'err'); }
+  finally { btn.innerHTML = 'Löschen'; btn.disabled = false; }
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+if (!token) {
+  $('notes-list').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Kein Token. Bitte aus Project Nemo heraus öffnen.</p></div>';
+} else {
+  load();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plugin: Tier-Kontext</title>
+  <!--
+    PET-LEVEL PLUGIN DEMO
+    =====================
+    This page demonstrates the placement: "pet" pattern.
+    It receives BOTH petId and token as URL query parameters.
+
+    This file is a minimal starter template — the full pattern
+    (CRUD, file upload, etc.) is shown in index.html.
+  -->
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 24px; background: #f9fafb; color: #111827; }
+    h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    p  { color: #6b7280; font-size: .87rem; line-height: 1.6; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+    .info { display: grid; gap: 6px; font-size: .85rem; }
+    .info span { font-weight: 600; }
+    .btn { margin-top: 16px; padding: 8px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: .85rem; }
+    .btn:hover { background: #059669; }
+    pre { background: #1f2937; color: #d1fae5; padding: 14px; border-radius: 8px; font-size: .8rem; margin-top: 10px; white-space: pre-wrap; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h2>📋 Pet-Level Plugin — Beispiel</h2>
+  <p>Dieses Tab wird pro Tier angezeigt. <code>petId</code> und <code>token</code> kommen als URL-Parameter.</p>
+
+  <div class="card">
+    <div class="info">
+      <div>Tier-ID: <span id="pet-id">—</span></div>
+      <div>Nutzer:  <span id="user-name">—</span></div>
+    </div>
+
+    <button class="btn" id="btn-fetch">Tierarztbesuche dieses Tiers laden</button>
+    <pre id="output">Noch keine Anfrage gesendet.</pre>
+  </div>
+
+  <script>
+    // Read context from URL
+    const params = new URLSearchParams(location.search);
+    const petId  = params.get('petId');
+    const token  = params.get('token') || '';
+
+    document.getElementById('pet-id').textContent = petId || '(fehlt)';
+
+    // Show current user info
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(u => { document.getElementById('user-name').textContent = `${u.name} (${u.email})`; })
+      .catch(() => {});
+
+    // Example: fetch data scoped to this specific pet
+    document.getElementById('btn-fetch').addEventListener('click', async () => {
+      const output = document.getElementById('output');
+      if (!petId) { output.textContent = 'Keine petId vorhanden.'; return; }
+      try {
+        const res = await fetch(`/api/pets/${petId}/vet-visits`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        output.textContent = JSON.stringify(data.slice(0, 3), null, 2);
+      } catch (e) {
+        output.textContent = 'Fehler: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>
