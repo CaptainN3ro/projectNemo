@@ -2,7 +2,8 @@ const AdmZip = require('adm-zip');
 const path   = require('path');
 const fs     = require('fs');
 const {
-  Pet, VetVisit, Medication, BloodWork, StoolEntry, BehaviorEntry,
+  Pet, VetVisit, VetVisitAttachment, AttachmentType,
+  Medication, BloodWork, StoolEntry, UrineEntry, BehaviorEntry,
   FeedingPlan, FeedingEntry, Vaccination, Event, WeightEntry
 } = require('../models');
 
@@ -45,15 +46,40 @@ async function exportPet(petId, userId) {
   const petData = cleanRecord(pet);
   scheduleFile(pet.photo_path, 'images');
 
-  // ── Core tables ───────────────────────────────────────────────────────────
-  const vetVisits    = (await VetVisit.findAll({ where: { pet_id: petId } })).map(cleanRecord);
-  const medications  = (await Medication.findAll({ where: { pet_id: petId } })).map(cleanRecord);
+  // ── Tierarztbesuche mit Anlagen ───────────────────────────────────────────
+  // Anlagen werden inline in jedem Besuch gespeichert (type_name statt type_id)
+  // so dass der Import keine ID-Zuordnung benoetigt.
+  const vetVisitsRaw = await VetVisit.findAll({
+    where: { pet_id: petId },
+    include: [{ model: VetVisitAttachment, include: [AttachmentType] }]
+  });
+  const vetVisits = vetVisitsRaw.map(r => {
+    const clean = cleanRecord(r);
+    delete clean.VetVisitAttachments;
+    clean.attachments = (r.VetVisitAttachments || []).map(att => {
+      scheduleFile(att.file_path, 'attachments');
+      return {
+        type_name:         att.AttachmentType?.name || null,
+        file_path:         att.file_path,
+        original_filename: att.original_filename,
+        file_size:         att.file_size,
+        description:       att.description
+      };
+    });
+    return clean;
+  });
 
-  const bloodWorkRaw = await BloodWork.findAll({ where: { pet_id: petId } });
-  const bloodWork    = bloodWorkRaw.map(r => { scheduleFile(r.file_path, 'bloodwork'); return cleanRecord(r); });
+  // ── Sonstige Kerntabellen ─────────────────────────────────────────────────
+  const medications = (await Medication.findAll({ where: { pet_id: petId } })).map(cleanRecord);
 
   const stoolRaw     = await StoolEntry.findAll({ where: { pet_id: petId } });
   const stoolEntries = stoolRaw.map(r => {
+    (r.image_paths || []).forEach(img => scheduleFile(img, 'images'));
+    return cleanRecord(r);
+  });
+
+  const urineRaw     = await UrineEntry.findAll({ where: { pet_id: petId } });
+  const urineEntries = urineRaw.map(r => {
     (r.image_paths || []).forEach(img => scheduleFile(img, 'images'));
     return cleanRecord(r);
   });
@@ -66,8 +92,8 @@ async function exportPet(petId, userId) {
 
   const feedingPlansRaw = await FeedingPlan.findAll({ where: { pet_id: petId }, include: [FeedingEntry] });
   const feedingPlans    = feedingPlansRaw.map(plan => {
-    const p      = cleanRecord(plan);
-    p.entries    = (plan.FeedingEntries || []).map(e => {
+    const p   = cleanRecord(plan);
+    p.entries = (plan.FeedingEntries || []).map(e => {
       const obj = e.toJSON();
       delete obj.id;
       delete obj.feeding_plan_id;
@@ -76,12 +102,16 @@ async function exportPet(petId, userId) {
     return p;
   });
 
-  const vaccinations = (await Vaccination.findAll({ where: { pet_id: petId } })).map(cleanRecord);
-  const events       = (await Event.findAll({ where: { pet_id: petId } })).map(cleanRecord);
+  const vaccinations  = (await Vaccination.findAll({ where: { pet_id: petId } })).map(cleanRecord);
+  const events        = (await Event.findAll({ where: { pet_id: petId } })).map(cleanRecord);
   const weightEntries = (await WeightEntry.findAll({ where: { pet_id: petId } })).map(cleanRecord);
 
-  // ── Plugin hooks ──────────────────────────────────────────────────────────
-  const pluginData   = {};
+  // Altdaten: blood_work wird weiterhin exportiert (Rueckwaertskompatibilitaet)
+  const bloodWorkRaw = await BloodWork.findAll({ where: { pet_id: petId } });
+  const bloodWork    = bloodWorkRaw.map(r => { scheduleFile(r.file_path, 'bloodwork'); return cleanRecord(r); });
+
+  // ── Plugin-Hooks ──────────────────────────────────────────────────────────
+  const pluginData = {};
   const { getPluginModules } = require('./pluginService');
   for (const [name, mod] of getPluginModules()) {
     if (typeof mod.exportPetData === 'function') {
@@ -89,12 +119,12 @@ async function exportPet(petId, userId) {
         const result = await mod.exportPetData(petId, userId, UPLOAD_DIR, addFiles);
         if (result != null) pluginData[name] = result;
       } catch (e) {
-        console.error(`Export hook failed for plugin "${name}":`, e.message);
+        console.error(`Export-Hook fuer Plugin "${name}" fehlgeschlagen:`, e.message);
       }
     }
   }
 
-  // ── Assemble ZIP ──────────────────────────────────────────────────────────
+  // ── ZIP zusammenbauen ─────────────────────────────────────────────────────
   const manifest = {
     version:    '1.0',
     exportDate: new Date().toISOString(),
@@ -103,9 +133,17 @@ async function exportPet(petId, userId) {
   };
 
   const data = {
-    pet: petData, vet_visits: vetVisits, medications, blood_work: bloodWork,
-    stool_entries: stoolEntries, behavior_entries: behaviorEntries,
-    feeding_plans: feedingPlans, vaccinations, events, weight_entries: weightEntries
+    pet: petData,
+    vet_visits:       vetVisits,
+    medications,
+    stool_entries:    stoolEntries,
+    urine_entries:    urineEntries,
+    behavior_entries: behaviorEntries,
+    feeding_plans:    feedingPlans,
+    vaccinations,
+    events,
+    weight_entries:   weightEntries,
+    blood_work:       bloodWork  // Altdaten: weiterhin exportiert
   };
 
   zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'));
@@ -115,7 +153,6 @@ async function exportPet(petId, userId) {
     zip.addFile(`plugins/${pluginName}.json`, Buffer.from(JSON.stringify(pData, null, 2), 'utf8'));
   }
 
-  // Deduplicate files (same diskPath might be added twice)
   const seen = new Set();
   for (const { diskPath: dp, archivePath } of addFiles) {
     if (seen.has(dp)) continue;
@@ -123,7 +160,7 @@ async function exportPet(petId, userId) {
     try {
       zip.addLocalFile(dp, path.dirname(archivePath), path.basename(archivePath));
     } catch (e) {
-      console.warn(`Could not add file to export ZIP: ${dp}`);
+      console.warn(`Datei konnte nicht zum Export-ZIP hinzugefuegt werden: ${dp}`);
     }
   }
 

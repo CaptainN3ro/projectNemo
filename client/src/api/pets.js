@@ -16,7 +16,20 @@ export const vetVisitsApi = {
   getAll: (petId) => client.get(`/pets/${petId}/vet-visits`).then(r => r.data),
   create: (petId, data) => client.post(`/pets/${petId}/vet-visits`, data).then(r => r.data),
   update: (petId, id, data) => client.put(`/pets/${petId}/vet-visits/${id}`, data).then(r => r.data),
-  delete: (petId, id) => client.delete(`/pets/${petId}/vet-visits/${id}`).then(r => r.data)
+  delete: (petId, id) => client.delete(`/pets/${petId}/vet-visits/${id}`).then(r => r.data),
+  getQuickActions: (petId) => client.get(`/pets/${petId}/vet-visits/quick-actions`).then(r => r.data),
+  getAttachmentTypes: () => client.get('/vet-visits/attachment-types').then(r => r.data),
+  uploadAttachment: (petId, visitId, file, typeId, description) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('type_id', typeId);
+    if (description) fd.append('description', description);
+    return client.post(`/pets/${petId}/vet-visits/${visitId}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+  },
+  updateAttachment: (petId, visitId, attId, data) => client.put(`/pets/${petId}/vet-visits/${visitId}/attachments/${attId}`, data).then(r => r.data),
+  deleteAttachment: (petId, visitId, attId) => client.delete(`/pets/${petId}/vet-visits/${visitId}/attachments/${attId}`).then(r => r.data),
+  downloadAttachment: (petId, visitId, attId) => `${import.meta.env.VITE_API_URL || ''}/api/pets/${petId}/vet-visits/${visitId}/attachments/${attId}/download`,
+  viewAttachment:     (petId, visitId, attId) => `${import.meta.env.VITE_API_URL || ''}/api/pets/${petId}/vet-visits/${visitId}/attachments/${attId}/view`
 };
 
 export const medicationsApi = {
@@ -97,6 +110,18 @@ export const backupApi = {
     fd.append('backup', file);
     return client.post('/pets/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
   }
+};
+
+export const urineApi = {
+  getAll: (petId, params) => client.get(`/pets/${petId}/urine`, { params }).then(r => r.data),
+  create: (petId, data, files) => {
+    const fd = new FormData();
+    Object.entries(data).forEach(([k, v]) => fd.append(k, v));
+    files?.forEach(f => fd.append('images', f));
+    return client.post(`/pets/${petId}/urine`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+  },
+  update: (petId, id, data) => client.put(`/pets/${petId}/urine/${id}`, data).then(r => r.data),
+  delete: (petId, id) => client.delete(`/pets/${petId}/urine/${id}`).then(r => r.data)
 };
 
 export const weightApi = {

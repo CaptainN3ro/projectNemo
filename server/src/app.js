@@ -46,6 +46,8 @@ app.use('/api/pets', require('./routes/vetVisits'));
 app.use('/api/pets', require('./routes/medications'));
 app.use('/api/pets', require('./routes/bloodWork'));
 app.use('/api/pets', require('./routes/stoolDiary'));
+app.use('/api/pets', require('./routes/urineDiary'));
+app.use('/api/vet-visits', require('./routes/vetVisits')); // attachment-types endpoint
 app.use('/api/pets', require('./routes/behaviorDiary'));
 app.use('/api/pets', require('./routes/feedingPlan'));
 app.use('/api/pets', require('./routes/vaccinations'));

@@ -61,8 +61,28 @@ const zipFilter = (req, file, cb) => {
   else cb(new Error('Only ZIP files allowed'));
 };
 
-const uploadImage = multer({ storage: imageStorage, fileFilter: imageFilter, limits: { fileSize: 10 * 1024 * 1024 } });
-const uploadPdf = multer({ storage: pdfStorage, fileFilter: pdfFilter, limits: { fileSize: 50 * 1024 * 1024 } });
-const uploadZip = multer({ storage: zipStorage, fileFilter: zipFilter, limits: { fileSize: 100 * 1024 * 1024 } });
+// General-purpose attachment storage (PDF, images, documents)
+const attachmentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(UPLOAD_DIR, 'attachments');
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uuidv4()}${ext}`);
+  }
+});
 
-module.exports = { uploadImage, uploadPdf, uploadZip, UPLOAD_DIR, PLUGINS_DIR };
+const attachmentFilter = (req, file, cb) => {
+  const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.doc', '.docx', '.txt'];
+  if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
+  else cb(new Error('Dateityp nicht erlaubt'));
+};
+
+const uploadImage      = multer({ storage: imageStorage,      fileFilter: imageFilter,      limits: { fileSize: 10  * 1024 * 1024 } });
+const uploadPdf        = multer({ storage: pdfStorage,        fileFilter: pdfFilter,        limits: { fileSize: 50  * 1024 * 1024 } });
+const uploadZip        = multer({ storage: zipStorage,        fileFilter: zipFilter,        limits: { fileSize: 100 * 1024 * 1024 } });
+const uploadAttachment = multer({ storage: attachmentStorage, fileFilter: attachmentFilter, limits: { fileSize: 50  * 1024 * 1024 } });
+
+module.exports = { uploadImage, uploadPdf, uploadZip, uploadAttachment, UPLOAD_DIR, PLUGINS_DIR };

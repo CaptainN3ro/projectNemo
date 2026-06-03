@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { StoolEntry, BehaviorEntry, Pet } = require('../models');
+const { StoolEntry, BehaviorEntry, UrineEntry, Pet } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { Op, fn, col, literal } = require('sequelize');
 
@@ -15,7 +15,7 @@ router.get('/:petId/stats', async (req, res, next) => {
     if (!pet) return res.status(404).json({ error: 'Pet not found' });
 
     const { period = 'month', type = 'stool' } = req.query;
-    const Model = type === 'behavior' ? BehaviorEntry : StoolEntry;
+    const Model = type === 'behavior' ? BehaviorEntry : type === 'urine' ? UrineEntry : StoolEntry;
 
     const now = new Date();
     let from;

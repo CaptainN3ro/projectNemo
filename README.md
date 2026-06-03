@@ -28,10 +28,12 @@ Ein selbst-hostbares, datenschutzorientiertes Tier-Dokumentationssystem. Tierarz
 | Funktion | Beschreibung |
 |---|---|
 | **Tierprofile** | Name, Tierart, Rasse, Geschlecht, Gewicht, Mikrochip-Nr., Foto |
-| **Tierarztbesuche** | Vergangene und zukünftige Termine mit Grund, Diagnose, Behandlung, Kosten |
+| **Tierarztbesuche** | Vergangene und zukünftige Termine mit Grund, Diagnose, Behandlung, Kosten, Anlagen |
+| **Tierarzt-Anlagen** | Pro Besuch mehrere Anlagen hochladbar (Blutbild, Urinauswertung, Ultraschall, Röntgen, Rechnung usw.) — Typen erweiterbar durch Plugins |
+| **Quick-Actions** | Schnell-Buttons im Tierarzt-Tab (z.B. "Letztes Blutbild") springen direkt zum passenden Besuch — erweiterbar durch Plugins |
 | **Medikamente** | Medikamentenpläne mit Dosierung, Häufigkeit und Zeitraum |
-| **Blutbilder** | PDFs hochladen, ansehen und herunterladen, mit Bewertung |
 | **Kottagebuch** | Tageseinträge mit Bewertung 1–5, Konsistenz, Blut-/Schleim-Kennzeichnung, Fotos |
+| **Urintagebuch** | Tageseinträge mit Bewertung 1–5, Farbe, Trübung, Blut- und Sediment-Kennzeichnung, Fotos |
 | **Verhaltenstagebuch** | Tageseinträge mit Bewertung 1–5, Kategorie, Fotos |
 | **Futterplan** | Mehrere Pläne mit Mahlzeiten, Futterarten und Mengen |
 | **Impfplan** | Impfeinträge mit Fälligkeitswarnungen und E-Mail-Erinnerungen |
@@ -725,13 +727,15 @@ Jedes Tier kann als selbst-enthaltenes ZIP exportiert und auf jeder anderen Proj
 nemo-export-Nemo-2026-06-02.zip
 ├── manifest.json          ← Version, Exportdatum, Tiername, enthaltene Plugins
 ├── data.json              ← Alle Kern-Tierdaten (ohne IDs, ohne Nutzerreferenzen)
+│                            Tierarztbesuche enthalten ihre Anlagen inline (type_name + Dateireferenz)
 ├── files/
-│   ├── images/            ← Profilfoto, Kot- und Verhaltensbilder
-│   ├── bloodwork/         ← Blutbild-PDFs
+│   ├── images/            ← Profilfoto, Kot-/Urin-/Verhaltensbilder
+│   ├── attachments/       ← Tierarzt-Anlagen (PDFs, Bilder, Dokumente aller Typen)
+│   ├── bloodwork/         ← Altdaten aus aelteren Exporten (Rueckwaertskompatibilitaet)
 │   └── plugins/
-│       └── fotoalbum/     ← Plugin-spezifische Dateien (wenn Plugin Export unterstützt)
+│       └── photo-album/   ← Plugin-spezifische Dateien (wenn Plugin Export unterstuetzt)
 └── plugins/
-    └── photo-album.json   ← Plugin-DB-Daten (wenn Plugin Export unterstützt)
+    └── photo-album.json   ← Plugin-DB-Daten (wenn Plugin Export unterstuetzt)
 ```
 
 Alle Dateireferenzen in `data.json` beziehen sich auf das `files/`-Verzeichnis — das ZIP ist vollständig in sich geschlossen.
@@ -746,8 +750,11 @@ Alle Dateireferenzen in `data.json` beziehen sich auf das `files/`-Verzeichnis �
 
 - Das Tier wird immer **neu angelegt** — vorhandene Tiere werden nie überschrieben
 - Alle Dateien erhalten neue UUIDs um Konflikte zu vermeiden
+- **Tierarzt-Anlagen** werden nur importiert, wenn der jeweilige Anlagentyp auf der Zielinstanz bekannt ist (Standard-Typen sind immer vorhanden; Plugin-Typen nur wenn das Plugin installiert ist)
+- **Urintagebuch** wird vollständig importiert einschließlich aller Fotos
 - Plugin-Daten werden nur importiert, wenn das **Plugin auf der Zielinstanz installiert und aktiv** ist
 - Fehlt ein Plugin, werden seine Daten stillschweigend übersprungen — das Tier und alle Kerndaten werden trotzdem importiert
+- Altdaten aus älteren Exporten (blood_work-Tabelle) werden beim Import ebenfalls berücksichtigt
 - Fehler in einzelnen Plugin-Import-Hooks werden geloggt, brechen den Import aber nicht ab
 
 ---

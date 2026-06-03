@@ -7,7 +7,7 @@ import {
 import { TrendingUp, TrendingDown, Minus, Scale } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { statsApi, weightApi } from '../../../api/pets';
+import { statsApi, weightApi, urineApi } from '../../../api/pets';
 
 function TrendIcon({ trend }) {
   if (trend === 'improving') return <div className="flex items-center gap-1 text-green-600"><TrendingUp size={16} /> Verbesserung</div>;
@@ -202,8 +202,9 @@ export default function StatisticsTab({ petId, petName }) {
         <p className="text-sm text-gray-500">Trends aus Tagebüchern und Gewichtsverlauf</p>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <DiaryStatsPanel petId={petId} type="stool" label="Kottagebuch — Trends" color="#10b981" />
-        <DiaryStatsPanel petId={petId} type="behavior" label="Verhalten — Trends" color="#8b5cf6" />
+        <DiaryStatsPanel petId={petId} type="stool"    label="Kottagebuch — Trends"    color="#10b981" />
+        <DiaryStatsPanel petId={petId} type="urine"    label="Urintagebuch — Trends"   color="#f59e0b" />
+        <DiaryStatsPanel petId={petId} type="behavior" label="Verhalten — Trends"      color="#8b5cf6" />
         <WeightStatsPanel petId={petId} />
       </div>
     </div>

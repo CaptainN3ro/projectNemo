@@ -1,9 +1,13 @@
 const User = require('./User');
 const Pet = require('./Pet');
 const VetVisit = require('./VetVisit');
+const VetVisitAttachment = require('./VetVisitAttachment');
+const AttachmentType = require('./AttachmentType');
+const VetVisitQuickAction = require('./VetVisitQuickAction');
 const Medication = require('./Medication');
 const BloodWork = require('./BloodWork');
 const StoolEntry = require('./StoolEntry');
+const UrineEntry = require('./UrineEntry');
 const BehaviorEntry = require('./BehaviorEntry');
 const FeedingPlan = require('./FeedingPlan');
 const FeedingEntry = require('./FeedingEntry');
@@ -25,6 +29,11 @@ Pet.belongsTo(User, { foreignKey: 'user_id' });
 Pet.hasMany(VetVisit, { foreignKey: 'pet_id', onDelete: 'CASCADE' });
 VetVisit.belongsTo(Pet, { foreignKey: 'pet_id' });
 
+VetVisit.hasMany(VetVisitAttachment, { foreignKey: 'vet_visit_id', onDelete: 'CASCADE' });
+VetVisitAttachment.belongsTo(VetVisit, { foreignKey: 'vet_visit_id' });
+VetVisitAttachment.belongsTo(AttachmentType, { foreignKey: 'type_id' });
+AttachmentType.hasMany(VetVisitAttachment, { foreignKey: 'type_id' });
+
 Pet.hasMany(Medication, { foreignKey: 'pet_id', onDelete: 'CASCADE' });
 Medication.belongsTo(Pet, { foreignKey: 'pet_id' });
 
@@ -33,6 +42,9 @@ BloodWork.belongsTo(Pet, { foreignKey: 'pet_id' });
 
 Pet.hasMany(StoolEntry, { foreignKey: 'pet_id', onDelete: 'CASCADE' });
 StoolEntry.belongsTo(Pet, { foreignKey: 'pet_id' });
+
+Pet.hasMany(UrineEntry, { foreignKey: 'pet_id', onDelete: 'CASCADE' });
+UrineEntry.belongsTo(Pet, { foreignKey: 'pet_id' });
 
 Pet.hasMany(BehaviorEntry, { foreignKey: 'pet_id', onDelete: 'CASCADE' });
 BehaviorEntry.belongsTo(Pet, { foreignKey: 'pet_id' });
@@ -64,7 +76,8 @@ User.hasMany(EmailVerificationToken, { foreignKey: 'user_id', onDelete: 'CASCADE
 EmailVerificationToken.belongsTo(User, { foreignKey: 'user_id' });
 
 module.exports = {
-  User, Pet, VetVisit, Medication, BloodWork, StoolEntry, BehaviorEntry,
+  User, Pet, VetVisit, VetVisitAttachment, AttachmentType, VetVisitQuickAction,
+  Medication, BloodWork, StoolEntry, UrineEntry, BehaviorEntry,
   FeedingPlan, FeedingEntry, Vaccination, Event, Reminder, SmtpSettings, Plugin,
   WeightEntry, AppSettings, SiteSettings, PasswordResetToken, EmailVerificationToken
 };

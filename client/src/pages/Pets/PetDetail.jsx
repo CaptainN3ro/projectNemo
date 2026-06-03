@@ -6,29 +6,29 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { petsApi, backupApi } from '../../api/pets';
 import client from '../../api/client';
-import VetVisitsTab from './tabs/VetVisitsTab';
-import MedicationsTab from './tabs/MedicationsTab';
-import BloodWorkTab from './tabs/BloodWorkTab';
-import StoolDiaryTab from './tabs/StoolDiaryTab';
-import BehaviorTab from './tabs/BehaviorTab';
-import FeedingTab from './tabs/FeedingTab';
-import VaccinationsTab from './tabs/VaccinationsTab';
-import EventsTab from './tabs/EventsTab';
 import StatisticsTab from './tabs/StatisticsTab';
 import WeightDiaryTab from './tabs/WeightDiaryTab';
+import BehaviorTab from './tabs/BehaviorTab';
+import StoolDiaryTab from './tabs/StoolDiaryTab';
+import UrineDiaryTab from './tabs/UrineDiaryTab';
+import EventsTab from './tabs/EventsTab';
+import FeedingTab from './tabs/FeedingTab';
+import VaccinationsTab from './tabs/VaccinationsTab';
+import VetVisitsTab from './tabs/VetVisitsTab';
+import MedicationsTab from './tabs/MedicationsTab';
 import PluginFrame from '../../components/PluginFrame';
 
 const STATIC_TABS = [
-  { id: 'vet', label: 'Tierarzt' },
-  { id: 'meds', label: 'Medikamente' },
-  { id: 'blood', label: 'Blutbilder' },
-  { id: 'stool', label: 'Kottagebuch' },
-  { id: 'behavior', label: 'Verhalten' },
-  { id: 'feeding', label: 'Futterplan' },
+  { id: 'stats',        label: 'Statistiken' },
+  { id: 'weight',       label: 'Gewicht' },
+  { id: 'behavior',     label: 'Verhalten' },
+  { id: 'stool',        label: 'Kottagebuch' },
+  { id: 'urine',        label: 'Urintagebuch' },
+  { id: 'events',       label: 'Ereignisse' },
+  { id: 'feeding',      label: 'Futterplan' },
   { id: 'vaccinations', label: 'Impfplan' },
-  { id: 'events', label: 'Ereignisse' },
-  { id: 'weight', label: 'Gewicht' },
-  { id: 'stats', label: 'Statistiken' }
+  { id: 'vet',          label: 'Tierarztbesuche' },
+  { id: 'meds',         label: 'Medikamente' }
 ];
 
 const genderLabels = { male: 'Männlich', female: 'Weiblich', unknown: 'Unbekannt' };
@@ -153,16 +153,16 @@ export default function PetDetail() {
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-8">
-        {activeTab === 'vet' && <VetVisitsTab petId={id} />}
-        {activeTab === 'meds' && <MedicationsTab petId={id} />}
-        {activeTab === 'blood' && <BloodWorkTab petId={id} />}
-        {activeTab === 'stool' && <StoolDiaryTab petId={id} />}
-        {activeTab === 'behavior' && <BehaviorTab petId={id} />}
-        {activeTab === 'feeding' && <FeedingTab petId={id} />}
+        {activeTab === 'stats'        && <StatisticsTab petId={id} petName={pet.name} />}
+        {activeTab === 'weight'       && <WeightDiaryTab petId={id} />}
+        {activeTab === 'behavior'     && <BehaviorTab petId={id} />}
+        {activeTab === 'stool'        && <StoolDiaryTab petId={id} />}
+        {activeTab === 'urine'        && <UrineDiaryTab petId={id} />}
+        {activeTab === 'events'       && <EventsTab petId={id} />}
+        {activeTab === 'feeding'      && <FeedingTab petId={id} />}
         {activeTab === 'vaccinations' && <VaccinationsTab petId={id} />}
-        {activeTab === 'events' && <EventsTab petId={id} />}
-        {activeTab === 'weight' && <WeightDiaryTab petId={id} />}
-        {activeTab === 'stats' && <StatisticsTab petId={id} petName={pet.name} />}
+        {activeTab === 'vet'          && <VetVisitsTab petId={id} />}
+        {activeTab === 'meds'         && <MedicationsTab petId={id} />}
         {activeTab.startsWith('plugin:') && (() => {
           const pluginName = activeTab.replace('plugin:', '');
           const plugin = petPlugins.find(p => p.name === pluginName);
