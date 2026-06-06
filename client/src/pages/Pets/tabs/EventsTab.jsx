@@ -37,8 +37,14 @@ function EventForm({ petId, event, onClose }) {
     onSuccess: () => { qc.invalidateQueries(['events', petId]); toast.success('Gespeichert'); onClose(); },
     onError: e => toast.error(e.response?.data?.error || 'Fehler')
   });
+
+  function onSubmit(data) {
+    if (!data.reminder_enabled) data.reminder_at = null;
+    mutation.mutate(data);
+  }
+
   return (
-    <form onSubmit={handleSubmit(mutation.mutate)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="form-group col-span-2"><label className="label">Titel *</label><input className="input" {...register('title', { required: true })} /></div>
         <div className="form-group"><label className="label">Datum *</label><input type="datetime-local" className="input" {...register('event_date', { required: true })} /></div>

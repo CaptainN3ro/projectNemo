@@ -24,10 +24,11 @@ router.post('/:petId/events', async (req, res, next) => {
     if (!pet) return res.status(404).json({ error: 'Pet not found' });
     const { title, event_date, end_date, description, category, reminder_enabled, reminder_at } = req.body;
     if (!title || !event_date) return res.status(400).json({ error: 'title and event_date required' });
-    const event = await Event.create({ pet_id: pet.id, title, event_date, end_date, description, category, reminder_enabled, reminder_at });
-    if (reminder_enabled && reminder_at) {
+    const reminderAt = reminder_at === '' ? null : reminder_at;
+    const event = await Event.create({ pet_id: pet.id, title, event_date, end_date: end_date === '' ? null : end_date, description, category, reminder_enabled, reminder_at: reminderAt });
+    if (reminder_enabled && reminderAt) {
       const { createReminder } = require('../services/reminderService');
-      await createReminder({ userId: req.user.id, petId: pet.id, refType: 'event', refId: event.id, message: `Erinnerung für ${pet.name}: ${title}`, remindAt: new Date(reminder_at) });
+      await createReminder({ userId: req.user.id, petId: pet.id, refType: 'event', refId: event.id, message: `Erinnerung für ${pet.name}: ${title}`, remindAt: new Date(reminderAt) });
     }
     res.status(201).json(event);
   } catch (e) { next(e); }
@@ -39,7 +40,10 @@ router.put('/:petId/events/:id', async (req, res, next) => {
     if (!pet) return res.status(404).json({ error: 'Pet not found' });
     const event = await Event.findOne({ where: { id: req.params.id, pet_id: pet.id } });
     if (!event) return res.status(404).json({ error: 'Not found' });
-    await event.update(req.body);
+    const body = { ...req.body };
+    if (body.reminder_at === '') body.reminder_at = null;
+    if (body.end_date === '') body.end_date = null;
+    await event.update(body);
     res.json(event);
   } catch (e) { next(e); }
 });

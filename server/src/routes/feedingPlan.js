@@ -4,6 +4,8 @@ const { authenticate } = require('../middleware/auth');
 
 router.use(authenticate);
 
+const sanitizeEntry = e => ({ ...e, amount: e.amount === '' ? null : e.amount });
+
 async function getPet(petId, userId) {
   return Pet.findOne({ where: { id: petId, user_id: userId, active: true } });
 }
@@ -25,7 +27,7 @@ router.post('/:petId/feeding', async (req, res, next) => {
     if (!name) return res.status(400).json({ error: 'Name required' });
     const plan = await FeedingPlan.create({ pet_id: pet.id, name, active, notes });
     if (entries?.length) {
-      await FeedingEntry.bulkCreate(entries.map(e => ({ ...e, feeding_plan_id: plan.id })));
+      await FeedingEntry.bulkCreate(entries.map(e => ({ ...sanitizeEntry(e), feeding_plan_id: plan.id })));
     }
     const full = await FeedingPlan.findByPk(plan.id, { include: [FeedingEntry] });
     res.status(201).json(full);
@@ -42,7 +44,7 @@ router.put('/:petId/feeding/:id', async (req, res, next) => {
     await plan.update({ name, active, notes });
     if (entries !== undefined) {
       await FeedingEntry.destroy({ where: { feeding_plan_id: plan.id } });
-      if (entries.length) await FeedingEntry.bulkCreate(entries.map(e => ({ ...e, feeding_plan_id: plan.id })));
+      if (entries.length) await FeedingEntry.bulkCreate(entries.map(e => ({ ...sanitizeEntry(e), feeding_plan_id: plan.id })));
     }
     const full = await FeedingPlan.findByPk(plan.id, { include: [FeedingEntry] });
     res.json(full);

@@ -7,6 +7,8 @@ const { uploadAttachment, UPLOAD_DIR } = require('../middleware/upload');
 
 router.use(authenticate);
 
+const e2n = v => v === '' ? null : v;
+
 async function getPet(petId, userId) {
   return Pet.findOne({ where: { id: petId, user_id: userId, active: true } });
 }
@@ -70,7 +72,7 @@ router.post('/:petId/vet-visits', async (req, res, next) => {
     if (!pet) return res.status(404).json({ error: 'Pet not found' });
     const { visit_date, is_future, reason, diagnosis, treatment, vet_name, vet_clinic, notes, cost, reminder_enabled } = req.body;
     if (!visit_date || !reason) return res.status(400).json({ error: 'visit_date und reason erforderlich' });
-    const visit = await VetVisit.create({ pet_id: pet.id, visit_date, is_future, reason, diagnosis, treatment, vet_name, vet_clinic, notes, cost, reminder_enabled });
+    const visit = await VetVisit.create({ pet_id: pet.id, visit_date, is_future, reason, diagnosis, treatment, vet_name, vet_clinic, notes, cost: e2n(cost), reminder_enabled });
     if (reminder_enabled && is_future) {
       const { createReminder } = require('../services/reminderService');
       await createReminder({ userId: req.user.id, petId: pet.id, refType: 'vet_visit', refId: visit.id, message: `Tierarzttermin fuer ${pet.name}: ${reason}`, remindAt: new Date(visit_date) });
@@ -86,7 +88,9 @@ router.put('/:petId/vet-visits/:id', async (req, res, next) => {
     if (!pet) return res.status(404).json({ error: 'Pet not found' });
     const visit = await getVisit(pet.id, req.params.id);
     if (!visit) return res.status(404).json({ error: 'Not found' });
-    await visit.update(req.body);
+    const body = { ...req.body };
+    if (body.cost === '') body.cost = null;
+    await visit.update(body);
     const full = await VetVisit.findByPk(visit.id, { include: [{ model: VetVisitAttachment, include: [AttachmentType] }] });
     res.json(full);
   } catch (e) { next(e); }

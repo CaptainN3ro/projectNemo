@@ -14,7 +14,13 @@ function FeedingForm({ petId, plan, onClose }) {
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'entries' });
   const mutation = useMutation({
-    mutationFn: data => plan ? feedingApi.update(petId, plan.id, data) : feedingApi.create(petId, data),
+    mutationFn: data => {
+      const sanitized = {
+        ...data,
+        entries: (data.entries || []).map(e => ({ ...e, amount: e.amount === '' ? null : e.amount }))
+      };
+      return plan ? feedingApi.update(petId, plan.id, sanitized) : feedingApi.create(petId, sanitized);
+    },
     onSuccess: () => { qc.invalidateQueries(['feeding', petId]); toast.success('Gespeichert'); onClose(); },
     onError: e => toast.error(e.response?.data?.error || 'Fehler')
   });

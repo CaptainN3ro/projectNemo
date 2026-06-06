@@ -1,5 +1,6 @@
 .env
 node_modules/
+website/
 dist/
 uploads/*
 !uploads/.gitkeep

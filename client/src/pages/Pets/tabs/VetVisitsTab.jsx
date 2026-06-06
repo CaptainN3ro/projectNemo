@@ -25,8 +25,17 @@ function VetForm({ petId, visit, onClose }) {
     onError: e => toast.error(e.response?.data?.error || 'Fehler')
   });
 
+  function onSubmit(data) {
+    if (data.is_future) {
+      data.cost = null;
+      data.diagnosis = null;
+      data.treatment = null;
+    }
+    mutation.mutate(data);
+  }
+
   return (
-    <form onSubmit={handleSubmit(mutation.mutate)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="flex items-center gap-3">
         <input type="checkbox" id="is_future" {...register('is_future')} className="w-4 h-4 text-primary-600" />
         <label htmlFor="is_future" className="text-sm font-medium text-gray-700">Zukuenftiger Termin</label>
