@@ -32,7 +32,14 @@ app.use(cors({
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/', apiLimiter);
-app.use('/api/auth/', authLimiter);
+// Only rate-limit the credential-related endpoints (brute-force / spam
+// protection). Token-based endpoints like /me, /refresh and /public-settings
+// are hit on every app/webview reload and would otherwise exhaust this
+// budget, locking users out of /login itself.
+app.use(
+  ['/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', '/api/auth/reset-password'],
+  authLimiter
+);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
