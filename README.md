@@ -15,6 +15,7 @@ Ein selbst-hostbares, datenschutzorientiertes Tier-Dokumentationssystem. Tierarz
 - [FTP-Zugang (Plugin-Ordner)](#ftp-zugang-plugin-ordner)
 - [Plugin-Entwicklung](#plugin-entwicklung)
 - [Tier-Export & -Import](#tier-export---import)
+- [Mobile App (Nemo Companion)](#mobile-app-nemo-companion)
 - [Admin-Handbuch](#admin-handbuch)
 - [Entwicklung ohne Docker](#entwicklung-ohne-docker)
 - [Sicherheitshinweise](#sicherheitshinweise)
@@ -756,6 +757,18 @@ Alle Dateireferenzen in `data.json` beziehen sich auf das `files/`-Verzeichnis �
 - Fehlt ein Plugin, werden seine Daten stillschweigend übersprungen — das Tier und alle Kerndaten werden trotzdem importiert
 - Altdaten aus älteren Exporten (blood_work-Tabelle) werden beim Import ebenfalls berücksichtigt
 - Fehler in einzelnen Plugin-Import-Hooks werden geloggt, brechen den Import aber nicht ab
+
+---
+
+## Mobile App (Nemo Companion)
+
+**Nemo Companion** ist eine native Begleit-App für Android (Flutter; iOS-Build vorbereitet), die die Web-App einer Project-Nemo-Instanz in einer WebView rendert und um native Funktionen ergänzt:
+
+- Verwaltung mehrerer Server-Verbindungen mit verschlüsseltem Token-Speicher und Auto-Login
+- Native Datei-Uploads (Anlagen, Fotos) und Downloads (Excel-/ZIP-Exporte, PDF-Anlagen, Plugin-Dateien wie das Fotoalbum) über das System-Share-Menü
+- Moderner, nativer Datums-Picker statt der Browser-Standardansicht
+
+> **Quellcode & Releases:** [github.com/CaptainN3ro/nemoCompanion](https://github.com/CaptainN3ro/nemoCompanion) — eigenständiges Repository, nicht Teil dieses Monorepos.
 
 ---
 
